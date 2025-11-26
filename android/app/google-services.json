@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "970712007739",
+    "project_id": "sah-food",
+    "storage_bucket": "sah-food.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:970712007739:android:979960f98a598ec9d9881e",
+        "android_client_info": {
+          "package_name": "com.example.sahfood"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzMhjNvcAvePiMUXaHcB_aTWhLFNCqwCc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

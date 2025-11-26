@@ -1,0 +1,454 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/constantes/couleurs_app.dart';
+import '../../core/constantes/tailles_app.dart';
+import '../../modeles_vues/menu_model_vue.dart';
+
+class EcranMenu extends StatefulWidget {
+  const EcranMenu({super.key});
+
+  @override
+  State<EcranMenu> createState() => _EtatEcranMenu();
+}
+
+class _EtatEcranMenu extends State<EcranMenu> {
+  final PageController _controleurPage = PageController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final menuModel = context.read<MenuModelVue>();
+      if (menuModel.menusHebdomadaires.isEmpty) {
+        menuModel.initialiser();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controleurPage.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<MenuModelVue>(
+      builder: (context, menuModel, child) {
+        return Column(
+          children: [
+            _construireAppBar(),
+            Expanded(
+              child: Container(
+                color: CouleursApp.grisClair,
+                child: menuModel.estEnChargement
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: [
+                          _construireOnglets(menuModel),
+                          Expanded(
+                            child: PageView.builder(
+                              controller: _controleurPage,
+                              onPageChanged: (index) {
+                                menuModel.changerOngletJour(index);
+                              },
+                              itemCount: MenuModelVue.joursSemaine.length,
+                              itemBuilder: (context, index) {
+                                return _construirePageMenu(menuModel, MenuModelVue.joursSemaine[index]);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _construireAppBar() {
+    return Container(
+      height: 56,
+      decoration: const BoxDecoration(
+        color: CouleursApp.bleuPrimaire,
+      ),
+      child: const SafeArea(
+        child: Center(
+          child: Text(
+            'Menus de la semaine',
+            style: TextStyle(
+              color: CouleursApp.blanc,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _construireOnglets(MenuModelVue menuModel) {
+    return Container(
+      height: 60,
+      margin: const EdgeInsets.all(TaillesApp.espacementMoyen),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: MenuModelVue.joursSemaine.length,
+        itemBuilder: (context, index) {
+          final estSelectionne = index == menuModel.ongletSelectionne;
+          return GestureDetector(
+            onTap: () {
+              menuModel.changerOngletJour(index);
+              _controleurPage.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: TaillesApp.espacementMin),
+              padding: const EdgeInsets.symmetric(
+                horizontal: TaillesApp.espacementMoyen,
+                vertical: TaillesApp.espacementMin,
+              ),
+              decoration: BoxDecoration(
+                color: estSelectionne ? CouleursApp.orangePrimaire : CouleursApp.blanc,
+                borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+                boxShadow: [
+                  if (estSelectionne)
+                    BoxShadow(
+                      color: CouleursApp.orangePrimaire.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    MenuModelVue.joursSemaine[index],
+                    style: TextStyle(
+                      color: estSelectionne ? CouleursApp.blanc : CouleursApp.grisFonce,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: estSelectionne
+                          ? CouleursApp.blanc
+                          : (menuModel.aCommandePourJour(index + 1)
+                              ? CouleursApp.succes
+                              : CouleursApp.erreur),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _construirePageMenu(MenuModelVue menuModel, String jour) {
+    final plats = menuModel.platsJourSelectionne;
+    return RefreshIndicator(
+      onRefresh: () => menuModel.chargerMenusHebdomadaires(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: TaillesApp.espacementMoyen),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          Text(
+            'Menu du $jour',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: CouleursApp.bleuFonce,
+            ),
+          ),
+          const SizedBox(height: TaillesApp.espacementMoyen),
+
+          if (plats.isEmpty)
+            const Center(
+              child: Text(
+                'Aucun plat disponible pour ce jour',
+                style: TextStyle(
+                  color: CouleursApp.gris,
+                  fontSize: 16,
+                ),
+              ),
+            )
+          else
+            ...plats.map((plat) => _construirePlatDuJour(
+              menuModel,
+              plat: plat,
+            )).toList(),
+
+          const SizedBox(height: TaillesApp.espacementTresGrand),
+        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _construirePlatDuJour(
+    MenuModelVue menuModel, {
+    required plat,
+  }) {
+    // Vérifier si ce jour a déjà été commandé
+    final dejaCommande = plat.jourSemaine != null &&
+                         menuModel.aCommandePourJour(plat.jourSemaine!);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: TaillesApp.espacementMoyen),
+      decoration: BoxDecoration(
+        color: CouleursApp.blanc,
+        borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+        boxShadow: [
+          BoxShadow(
+            color: CouleursApp.gris.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(TaillesApp.rayonMoyen),
+                  topRight: Radius.circular(TaillesApp.rayonMoyen),
+                ),
+                child: plat.photoUrl != null
+                    ? Image.asset(
+                        plat.photoUrl!,
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 150,
+                            width: double.infinity,
+                            color: CouleursApp.grisClair,
+                            child: const Icon(
+                              Icons.restaurant,
+                              size: 40,
+                              color: CouleursApp.gris,
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        height: 150,
+                        width: double.infinity,
+                        color: CouleursApp.grisClair,
+                        child: const Icon(
+                          Icons.restaurant,
+                          size: 40,
+                          color: CouleursApp.gris,
+                        ),
+                      ),
+              ),
+
+              if (plat.allergenes != null && plat.allergenes!.isNotEmpty)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: CouleursApp.erreur,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: CouleursApp.blanc,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          plat.allergenes!,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: CouleursApp.blanc,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(TaillesApp.espacementMoyen),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  plat.nom,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: CouleursApp.bleuFonce,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  plat.description,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: CouleursApp.grisFonce,
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: TaillesApp.espacementMoyen),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (plat.estDisponible && !dejaCommande)
+                        ? () => _afficherDialogueCommande(menuModel, plat)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: dejaCommande
+                          ? CouleursApp.succes
+                          : CouleursApp.bleuPrimaire,
+                      foregroundColor: CouleursApp.blanc,
+                      disabledBackgroundColor: dejaCommande
+                          ? CouleursApp.succes.withValues(alpha: 0.6)
+                          : CouleursApp.gris.withValues(alpha: 0.3),
+                      disabledForegroundColor: CouleursApp.blanc.withValues(alpha: 0.7),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (dejaCommande) ...[
+                          const Icon(Icons.check_circle, size: 18),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          dejaCommande
+                              ? 'Déjà commandé'
+                              : (plat.estDisponible ? 'Commander' : 'Indisponible'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _afficherDialogueCommande(MenuModelVue menuModel, plat) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+        ),
+        title: const Text(
+          'Confirmer la commande',
+          style: TextStyle(
+            color: CouleursApp.bleuFonce,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Voulez-vous commander "${plat.nom}" pour ${menuModel.jourSelectionne.toLowerCase()} ?',
+          style: const TextStyle(
+            color: CouleursApp.grisFonce,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: CouleursApp.gris),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _confirmerCommande(menuModel, plat);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CouleursApp.bleuFonce,
+              foregroundColor: CouleursApp.blanc,
+            ),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmerCommande(MenuModelVue menuModel, plat) async {
+    final succes = await menuModel.commanderPlat(plat);
+
+    if (succes && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Commande confirmée: ${plat.nom}'),
+          backgroundColor: CouleursApp.succes,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+          ),
+        ),
+      );
+    } else if (!succes && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la commande: ${menuModel.messageErreur}'),
+          backgroundColor: CouleursApp.erreur,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+          ),
+        ),
+      );
+    }
+  }
+}
