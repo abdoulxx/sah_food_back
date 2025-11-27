@@ -10,6 +10,7 @@ class ServiceUtilisateur {
     String? nom,
     String? departement,
     String? site,
+    String? photo,
   }) async {
     try {
       final donnees = <String, dynamic>{
@@ -21,9 +22,32 @@ class ServiceUtilisateur {
       if (nom != null) donnees['nom'] = nom;
       if (departement != null) donnees['departement'] = departement;
       if (site != null) donnees['site'] = site;
+      if (photo != null) donnees['photo'] = photo;
 
       final reponse = await ServiceSupabase.utilisateurs
           .update(donnees)
+          .eq('id_user', idUser)
+          .select()
+          .single();
+
+      return Utilisateur.fromJson(reponse);
+    } catch (e) {
+      throw Exception(ServiceSupabase.gererErreur(e));
+    }
+  }
+
+  /// Mettre à jour uniquement la photo de profil
+  static Future<Utilisateur> mettreAJourPhoto({
+    required int idUser,
+    required String photoUrl,
+  }) async {
+    try {
+      final reponse = await ServiceSupabase.utilisateurs
+          .update({
+            'photo': photoUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+            'updated_by': idUser,
+          })
           .eq('id_user', idUser)
           .select()
           .single();

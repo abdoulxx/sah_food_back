@@ -8,7 +8,7 @@ import 'service_notifications.dart';
 /// Service d'authentification avec Supabase
 class ServiceAuthentification {
   /// Inscription d'un nouvel utilisateur
-  static Future<Utilisateur?> inscrire({
+  static Future<Map<String, dynamic>> inscrire({
     required String email,
     required String motDePasse,
     required String qid,
@@ -19,7 +19,7 @@ class ServiceAuthentification {
     String? departement,
   }) async {
     try {
-      // 1. Créer l'utilisateur dans Supabase Auth
+      // 1. Créer l'utilisateur dans Supabase Auth avec confirmation email
       final AuthResponse reponseAuth = await ServiceSupabase.auth.signUp(
         email: email,
         password: motDePasse,
@@ -29,7 +29,10 @@ class ServiceAuthentification {
         throw Exception('Erreur lors de la création du compte');
       }
 
-      // 2. Créer l'entrée dans la table utilisateurs
+      // 2. Attendre un peu pour que la session soit stable
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 3. Créer l'entrée dans la table utilisateurs
       final Map<String, dynamic> donneesUtilisateur = {
         'qid': qid,
         'prenom': prenom,
@@ -40,26 +43,35 @@ class ServiceAuthentification {
         'departement': departement,
       };
 
-      final reponse = await ServiceSupabase.utilisateurs
-          .insert(donneesUtilisateur)
-          .select()
-          .single();
+      Map<String, dynamic>? reponse;
+      Utilisateur? utilisateur;
 
-      final utilisateur = Utilisateur.fromJson(reponse);
-
-      // 3. Sauvegarder l'utilisateur localement pour la persistance
-      await ServiceStockageLocal.sauvegarderUtilisateur(utilisateur);
-
-      // 4. Sauvegarder le token FCM pour les notifications
-      final tokenFCM = await ServiceNotifications.obtenirTokenFCM();
-      if (tokenFCM != null) {
-        await ServiceUtilisateur.sauvegarderTokenFCM(
-          idUser: utilisateur.idUser,
-          tokenFCM: tokenFCM,
-        );
+      try {
+        reponse = await ServiceSupabase.utilisateurs
+            .insert(donneesUtilisateur)
+            .select()
+            .single();
+        utilisateur = Utilisateur.fromJson(reponse);
+      } catch (insertError) {
+        // Si l'insertion échoue, nettoyer l'utilisateur Auth créé
+        print('Erreur insertion utilisateur: $insertError');
+        // On ne peut pas supprimer l'utilisateur, mais on signale l'erreur
       }
 
-      return utilisateur;
+      // 4. Déconnecter pour forcer la vérification email
+      try {
+        await ServiceSupabase.auth.signOut();
+      } catch (signOutError) {
+        // Ignorer les erreurs de déconnexion
+        print('Erreur déconnexion: $signOutError');
+      }
+
+      // 5. Retourner les informations
+      return {
+        'utilisateur': utilisateur,
+        'emailConfirme': false,
+        'message': 'Un email de confirmation a été envoyé à $email. Veuillez vérifier votre boîte mail.',
+      };
     } catch (e) {
       throw Exception(ServiceSupabase.gererErreur(e));
     }
@@ -81,7 +93,14 @@ class ServiceAuthentification {
         throw Exception('Email ou mot de passe incorrect');
       }
 
-      // 2. Récupérer les infos utilisateur depuis la table
+      // 2. Vérifier que l'email a été confirmé
+      if (reponse.user!.emailConfirmedAt == null) {
+        // Déconnecter l'utilisateur
+        await ServiceSupabase.auth.signOut();
+        throw Exception('Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte mail.');
+      }
+
+      // 3. Récupérer les infos utilisateur depuis la table
       final utilisateurData = await ServiceSupabase.utilisateurs
           .select()
           .eq('email', email)
@@ -94,10 +113,10 @@ class ServiceAuthentification {
 
       final utilisateur = Utilisateur.fromJson(utilisateurData);
 
-      // 3. Sauvegarder l'utilisateur localement pour la persistance
+      // 4. Sauvegarder l'utilisateur localement pour la persistance
       await ServiceStockageLocal.sauvegarderUtilisateur(utilisateur);
 
-      // 4. Sauvegarder le token FCM pour les notifications
+      // 5. Sauvegarder le token FCM pour les notifications
       final tokenFCM = await ServiceNotifications.obtenirTokenFCM();
       if (tokenFCM != null) {
         await ServiceUtilisateur.sauvegarderTokenFCM(

@@ -64,13 +64,16 @@ class ServiceCommande {
   static Future<Commande> creerCommande({
     required int idUser,
     required int idPlat,
-    String? commentaire,
+    String? siteLivraison, // DANGA ou CAMPUS
+    String? notesSpeciales, // Notes du collaborateur
   }) async {
     try {
       final donnees = {
         'id_user': idUser,
         'id_plat': idPlat,
         'statut': 'EN_ATTENTE',
+        'site_livraison': siteLivraison,
+        'notes_speciales': notesSpeciales,
         'created_by': idUser,
       };
 
@@ -212,11 +215,11 @@ class ServiceCommande {
     }
   }
 
-  /// Vérifier si un utilisateur a déjà commandé pour un jour de la semaine spécifique (1-5)
+  /// Vérifier si un utilisateur a déjà commandé pour un jour de la semaine spécifique (1-7)
   /// Vérifie parmi les commandes de la semaine courante (hors annulées)
   static Future<bool> aDejaCommandePourJourSemaine({
     required int idUser,
-    required int jourSemaine, // 1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi
+    required int jourSemaine, // 1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi, 6=Samedi, 7=Dimanche
   }) async {
     try {
       // Récupérer toutes les commandes de la semaine courante
@@ -254,6 +257,56 @@ class ServiceCommande {
         idUser: idUser,
         idPlat: nouveauIdPlat,
       );
+    } catch (e) {
+      throw Exception(ServiceSupabase.gererErreur(e));
+    }
+  }
+
+  /// Modifier le site de livraison d'une commande
+  static Future<Commande> modifierSiteLivraison({
+    required int idCommande,
+    required String nouveauSite,
+    required int modifiePar,
+  }) async {
+    try {
+      final donnees = {
+        'site_livraison': nouveauSite,
+        'updated_at': DateTime.now().toIso8601String(),
+        'updated_by': modifiePar,
+      };
+
+      final reponse = await ServiceSupabase.commandes
+          .update(donnees)
+          .eq('id_commande', idCommande)
+          .select('*, plats(*)')
+          .single();
+
+      return Commande.fromJson(reponse);
+    } catch (e) {
+      throw Exception(ServiceSupabase.gererErreur(e));
+    }
+  }
+
+  /// Modifier les notes spéciales d'une commande
+  static Future<Commande> modifierNotesSpeciales({
+    required int idCommande,
+    required String? nouvellesNotes,
+    required int modifiePar,
+  }) async {
+    try {
+      final donnees = {
+        'notes_speciales': nouvellesNotes,
+        'updated_at': DateTime.now().toIso8601String(),
+        'updated_by': modifiePar,
+      };
+
+      final reponse = await ServiceSupabase.commandes
+          .update(donnees)
+          .eq('id_commande', idCommande)
+          .select('*, plats(*)')
+          .single();
+
+      return Commande.fromJson(reponse);
     } catch (e) {
       throw Exception(ServiceSupabase.gererErreur(e));
     }

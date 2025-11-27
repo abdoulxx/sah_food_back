@@ -141,13 +141,17 @@ class AuthentificationModelVue extends ChangeNotifier {
     }
   }
 
+  String? _messageSuccesInscription;
+  String? get messageSuccesInscription => _messageSuccesInscription;
+
   Future<bool> sInscrire() async {
     _estEnChargement = true;
     _messageErreur = null;
+    _messageSuccesInscription = null;
     notifyListeners();
 
     try {
-      _utilisateurConnecte = await ServiceAuthentification.inscrire(
+      final resultat = await ServiceAuthentification.inscrire(
         email: controleurEmail.text.trim(),
         motDePasse: controleurMotDePasse.text,
         qid: controleurQid.text.trim(),
@@ -158,9 +162,13 @@ class AuthentificationModelVue extends ChangeNotifier {
         departement: _departementSelectionne,
       );
 
+      // L'utilisateur n'est PAS connecté automatiquement
+      _utilisateurConnecte = null;
+      _messageSuccesInscription = resultat['message'];
+
       _estEnChargement = false;
       notifyListeners();
-      return _utilisateurConnecte != null;
+      return true; // Inscription réussie
     } catch (erreur) {
       _messageErreur = erreur.toString().replaceAll('Exception: ', '');
       _estEnChargement = false;

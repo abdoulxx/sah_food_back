@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
 import '../../modeles_vues/authentification_model_vue.dart';
+import '../../services/service_authentification.dart';
 
 class EcranMotDePasseOublie extends StatefulWidget {
   const EcranMotDePasseOublie({super.key});
@@ -292,7 +293,10 @@ class _EtatEcranMotDePasseOublie extends State<EcranMotDePasseOublie> {
       });
 
       try {
-        await Future.delayed(const Duration(seconds: 2));
+        // Appeler le service Supabase pour envoyer l'email de réinitialisation
+        await ServiceAuthentification.reinitialiserMotDePasse(
+          _controleurEmail.text.trim(),
+        );
 
         setState(() {
           _estEnChargement = false;
@@ -306,7 +310,7 @@ class _EtatEcranMotDePasseOublie extends State<EcranMotDePasseOublie> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Erreur: ${erreur.toString()}'),
+              content: Text(erreur.toString().replaceAll('Exception: ', '')),
               backgroundColor: CouleursApp.erreur,
             ),
           );

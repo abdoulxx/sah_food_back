@@ -407,20 +407,59 @@ class _EtatEcranInscription extends State<EcranInscription> {
     if (_cleFormulaire.currentState!.validate()) {
       final succes = await modelVue.sInscrire();
       if (succes && context.mounted) {
-        // Rediriger vers l'application après inscription réussie
-        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => const NavigationPrincipale(),
-          ),
-          (route) => false,
-        );
-
-        // Afficher message de succès
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Inscription réussie ! Bienvenue sur SAH Food 🎉'),
-            backgroundColor: CouleursApp.succes,
-            duration: Duration(seconds: 3),
+        // Afficher un dialogue de confirmation
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.mark_email_read, color: CouleursApp.succes, size: 32),
+                SizedBox(width: 12),
+                Text(
+                  'Vérifiez votre email',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: CouleursApp.bleuFonce,
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  modelVue.messageSuccesInscription ?? '',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Vous ne pourrez vous connecter qu\'après avoir confirmé votre adresse email.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: CouleursApp.orangePrimaire,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(); // Fermer dialogue
+                  Navigator.of(context).pop(); // Retour à la page connexion
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CouleursApp.bleuPrimaire,
+                ),
+                child: const Text('OK, j\'ai compris'),
+              ),
+            ],
           ),
         );
       }

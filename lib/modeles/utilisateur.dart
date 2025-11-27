@@ -7,6 +7,7 @@ class Utilisateur {
   final String role;
   final String? departement;
   final String site;
+  final String? photo; // URL de la photo de profil
   final DateTime createdAt;
   final int? createdBy;
   final DateTime? updatedAt;
@@ -24,6 +25,7 @@ class Utilisateur {
     required this.role,
     this.departement,
     required this.site,
+    this.photo,
     required this.createdAt,
     this.createdBy,
     this.updatedAt,
@@ -46,6 +48,7 @@ class Utilisateur {
       role: json['role'],
       departement: json['departement'],
       site: json['site'],
+      photo: json['photo'],
       createdAt: DateTime.parse(json['created_at']),
       createdBy: json['created_by'],
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -66,6 +69,7 @@ class Utilisateur {
       'role': role,
       'departement': departement,
       'site': site,
+      'photo': photo,
       'created_at': createdAt.toIso8601String(),
       'created_by': createdBy,
       'updated_at': updatedAt?.toIso8601String(),
@@ -85,6 +89,7 @@ class Utilisateur {
     String? role,
     String? departement,
     String? site,
+    String? photo,
     DateTime? createdAt,
     int? createdBy,
     DateTime? updatedAt,
@@ -102,6 +107,7 @@ class Utilisateur {
       role: role ?? this.role,
       departement: departement ?? this.departement,
       site: site ?? this.site,
+      photo: photo ?? this.photo,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
       updatedAt: updatedAt ?? this.updatedAt,

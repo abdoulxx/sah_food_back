@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../modeles_vues/historique_model_vue.dart';
 import '../../modeles_vues/authentification_model_vue.dart';
+import '../../modeles_vues/navigation_model_vue.dart';
 import '../../modeles/commande.dart';
 import '../../services/service_menu.dart';
 import '../../core/constantes/couleurs_app.dart';
@@ -16,22 +17,44 @@ class EcranHistorique extends StatefulWidget {
 
 class _EcranHistoriqueState extends State<EcranHistorique> {
   final PageController _controleurPage = PageController();
+  int? _dernierIndexNavigation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Attendre que l'utilisateur soit chargé
-      final authModel = context.read<AuthentificationModelVue>();
-      while (authModel.utilisateurEnCoursDeChargement) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      // Charger l'historique une fois que l'utilisateur est prêt
-      if (mounted) {
-        context.read<HistoriqueModelVue>().chargerHistorique();
-      }
+      _chargerDonnees();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Détecter le retour sur cet onglet
+    final navigationModel = context.watch<NavigationModelVue>();
+    if (navigationModel.indexActuel == 2 && _dernierIndexNavigation != 2) {
+      // On vient de revenir sur l'onglet Historique
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<HistoriqueModelVue>().chargerHistorique();
+        }
+      });
+    }
+    _dernierIndexNavigation = navigationModel.indexActuel;
+  }
+
+  Future<void> _chargerDonnees() async {
+    // Attendre que l'utilisateur soit chargé
+    final authModel = context.read<AuthentificationModelVue>();
+    while (authModel.utilisateurEnCoursDeChargement) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    // Charger l'historique une fois que l'utilisateur est prêt
+    if (mounted) {
+      context.read<HistoriqueModelVue>().chargerHistorique();
+    }
   }
 
   @override
@@ -400,6 +423,32 @@ class _EcranHistoriqueState extends State<EcranHistorique> {
             ),
             const Divider(),
             ListTile(
+              leading: const Icon(Icons.location_on, color: CouleursApp.orangePrimaire),
+              title: const Text('Modifier le site de livraison'),
+              subtitle: Text('Actuellement: ${commande.siteLivraison ?? "Non défini"}'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _afficherDialogueModifierSite(commande);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.edit_note, color: CouleursApp.bleuPrimaire),
+              title: const Text('Modifier les notes spéciales'),
+              subtitle: Text(
+                commande.notesSpeciales?.isNotEmpty == true
+                    ? commande.notesSpeciales!
+                    : 'Aucune note',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                _afficherDialogueModifierNotes(commande);
+              },
+            ),
+            const Divider(),
+            ListTile(
               leading: const Icon(Icons.cancel, color: CouleursApp.erreur),
               title: const Text('Annuler la commande'),
               subtitle: const Text('Supprimer cette commande'),
@@ -620,6 +669,223 @@ class _EcranHistoriqueState extends State<EcranHistorique> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur: ${model.messageErreur ?? "Échec de l\'annulation"}'),
+          backgroundColor: CouleursApp.erreur,
+        ),
+      );
+    }
+  }
+
+  /// Afficher le dialogue pour modifier le site de livraison
+  void _afficherDialogueModifierSite(Commande commande) {
+    String siteSelectionne = commande.siteLivraison ?? 'CAMPUS';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+          ),
+          title: const Text(
+            'Modifier le site de livraison',
+            style: TextStyle(
+              color: CouleursApp.bleuFonce,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Plat: ${commande.plat?.nomPlat ?? "Inconnu"}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: CouleursApp.grisFonce,
+                ),
+              ),
+              const SizedBox(height: TaillesApp.espacementMoyen),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CouleursApp.gris),
+                  borderRadius: BorderRadius.circular(TaillesApp.rayonMin),
+                ),
+                child: DropdownButton<String>(
+                  value: siteSelectionne,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  items: ['CAMPUS', 'DANGA'].map((String site) {
+                    return DropdownMenuItem<String>(
+                      value: site,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: CouleursApp.orangePrimaire,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(site),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        siteSelectionne = newValue;
+                      });
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(color: CouleursApp.gris),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _modifierSiteCommande(commande.idCommande, siteSelectionne);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: CouleursApp.bleuPrimaire,
+              ),
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Afficher le dialogue pour modifier les notes spéciales
+  void _afficherDialogueModifierNotes(Commande commande) {
+    final controleurNotes = TextEditingController(text: commande.notesSpeciales ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+        ),
+        title: const Text(
+          'Modifier les notes spéciales',
+          style: TextStyle(
+            color: CouleursApp.bleuFonce,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Plat: ${commande.plat?.nomPlat ?? "Inconnu"}',
+              style: const TextStyle(
+                fontSize: 14,
+                color: CouleursApp.grisFonce,
+              ),
+            ),
+            const SizedBox(height: TaillesApp.espacementMoyen),
+            TextField(
+              controller: controleurNotes,
+              maxLines: 3,
+              maxLength: 200,
+              decoration: InputDecoration(
+                hintText: 'Ex: Je veux du piment svp, Sans oignons...',
+                hintStyle: const TextStyle(
+                  fontSize: 12,
+                  color: CouleursApp.gris,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TaillesApp.rayonMin),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              controleurNotes.dispose();
+              Navigator.of(context).pop();
+            },
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: CouleursApp.gris),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _modifierNotesCommande(commande.idCommande, controleurNotes.text.trim());
+              controleurNotes.dispose();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CouleursApp.bleuPrimaire,
+            ),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Modifier le site de livraison d'une commande
+  Future<void> _modifierSiteCommande(int idCommande, String nouveauSite) async {
+    final model = context.read<HistoriqueModelVue>();
+    final succes = await model.modifierSiteCommande(
+      idCommande: idCommande,
+      nouveauSite: nouveauSite,
+    );
+
+    if (!mounted) return;
+
+    if (succes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Site de livraison modifié: $nouveauSite'),
+          backgroundColor: CouleursApp.succes,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${model.messageErreur ?? "Échec de la modification"}'),
+          backgroundColor: CouleursApp.erreur,
+        ),
+      );
+    }
+  }
+
+  /// Modifier les notes spéciales d'une commande
+  Future<void> _modifierNotesCommande(int idCommande, String nouvelles_notes) async {
+    final model = context.read<HistoriqueModelVue>();
+    final succes = await model.modifierNotesCommande(
+      idCommande: idCommande,
+      nouvellesNotes: nouvelles_notes,
+    );
+
+    if (!mounted) return;
+
+    if (succes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notes spéciales modifiées avec succès'),
+          backgroundColor: CouleursApp.succes,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${model.messageErreur ?? "Échec de la modification"}'),
           backgroundColor: CouleursApp.erreur,
         ),
       );

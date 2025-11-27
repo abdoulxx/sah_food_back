@@ -22,19 +22,19 @@ class AccueilModelVue extends ChangeNotifier {
   double get progressionSemaine {
     final commandesActives = _commandesSemaine.where((c) => c.statut != StatutCommande.annulee).length;
     if (commandesActives == 0) return 0.0;
-    const totalJours = 5;
+    const totalJours = 7;
     return commandesActives / totalJours;
   }
 
   int get nombreCommandesPassees => _commandesSemaine.where((c) => c.statut != StatutCommande.annulee).length;
 
-  int get nombreJoursTotal => 5;
+  int get nombreJoursTotal => 7;
 
   bool get toutesComandesPassees => nombreCommandesPassees >= nombreJoursTotal;
 
   String get texteBoutonCommande {
     if (nombreCommandesPassees == 0) {
-      return 'Commencer à commander';
+      return 'Commander mes repas';
     } else if (nombreCommandesPassees >= nombreJoursTotal) {
       return 'Semaine complète';
     } else {
@@ -53,7 +53,7 @@ class AccueilModelVue extends ChangeNotifier {
   }
 
   Map<String, Commande?> get commandesParJour {
-    const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+    const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
     final Map<String, Commande?> result = {};
 
     // Filtrer les commandes non annulées

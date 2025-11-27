@@ -27,6 +27,8 @@ class Commande {
   final int idUser;
   final int idPlat;
   final StatutCommande statut;
+  final String? siteLivraison; // DANGA ou CAMPUS
+  final String? notesSpeciales; // Notes du collaborateur (ex: "Je veux du piment svp")
   final DateTime createdAt;
   final int? createdBy;
   final DateTime? updatedAt;
@@ -42,6 +44,8 @@ class Commande {
     required this.idUser,
     required this.idPlat,
     required this.statut,
+    this.siteLivraison,
+    this.notesSpeciales,
     required this.createdAt,
     this.createdBy,
     this.updatedAt,
@@ -88,6 +92,8 @@ class Commande {
       idUser: json['id_user'],
       idPlat: json['id_plat'],
       statut: StatutCommande.fromString(json['statut']),
+      siteLivraison: json['site_livraison'],
+      notesSpeciales: json['notes_speciales'],
       createdAt: DateTime.parse(json['created_at']),
       createdBy: json['created_by'],
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -104,6 +110,8 @@ class Commande {
       'id_user': idUser,
       'id_plat': idPlat,
       'statut': statut.valeur,
+      'site_livraison': siteLivraison,
+      'notes_speciales': notesSpeciales,
       'created_at': createdAt.toIso8601String(),
       'created_by': createdBy,
       'updated_at': updatedAt?.toIso8601String(),
@@ -118,6 +126,8 @@ class Commande {
     int? idUser,
     int? idPlat,
     StatutCommande? statut,
+    String? siteLivraison,
+    String? notesSpeciales,
     DateTime? createdAt,
     int? createdBy,
     DateTime? updatedAt,
@@ -131,6 +141,8 @@ class Commande {
       idUser: idUser ?? this.idUser,
       idPlat: idPlat ?? this.idPlat,
       statut: statut ?? this.statut,
+      siteLivraison: siteLivraison ?? this.siteLivraison,
+      notesSpeciales: notesSpeciales ?? this.notesSpeciales,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
       updatedAt: updatedAt ?? this.updatedAt,

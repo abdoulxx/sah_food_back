@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../modeles/utilisateur.dart';
 import '../services/service_authentification.dart';
+import '../services/service_utilisateur.dart';
 import 'authentification_model_vue.dart';
 
 class ProfilModelVue extends ChangeNotifier {
@@ -9,6 +11,7 @@ class ProfilModelVue extends ChangeNotifier {
   bool _estEnChargement = false;
   String? _messageErreur;
   bool _estEnModeEdition = false;
+  BuildContext? context;
 
   ProfilModelVue(this._authModelVue);
 
@@ -17,6 +20,10 @@ class ProfilModelVue extends ChangeNotifier {
   String? get messageErreur => _messageErreur;
   bool get estEnModeEdition => _estEnModeEdition;
   bool get estConnecte => _authModelVue.estConnecte;
+
+  void definirContext(BuildContext ctx) {
+    context = ctx;
+  }
 
   Future<void> initialiser() async {
     // Les données sont déjà chargées par AuthentificationModelVue
@@ -88,6 +95,51 @@ class ProfilModelVue extends ChangeNotifier {
     } catch (e) {
       _definirEtatChargement(false, e.toString().replaceAll('Exception: ', ''));
       return false;
+    }
+  }
+
+  Future<void> supprimerPhoto() async {
+    final utilisateur = _authModelVue.utilisateurConnecte;
+    if (utilisateur == null) return;
+
+    _definirEtatChargement(true, null);
+
+    try {
+      // Mettre à jour avec une photo null
+      await ServiceUtilisateur.mettreAJourPhoto(
+        idUser: utilisateur.idUser,
+        photoUrl: '',  // Chaîne vide pour supprimer
+      );
+
+      // Recharger l'utilisateur
+      await _authModelVue.rechargerUtilisateur();
+
+      _definirEtatChargement(false, null);
+    } catch (e) {
+      _definirEtatChargement(false, 'Erreur lors de la suppression: ${e.toString()}');
+      rethrow;
+    }
+  }
+
+  Future<void> mettreAJourPhoto(String photoUrl) async {
+    final utilisateur = _authModelVue.utilisateurConnecte;
+    if (utilisateur == null) return;
+
+    _definirEtatChargement(true, null);
+
+    try {
+      await ServiceUtilisateur.mettreAJourPhoto(
+        idUser: utilisateur.idUser,
+        photoUrl: photoUrl,
+      );
+
+      // Recharger l'utilisateur
+      await _authModelVue.rechargerUtilisateur();
+
+      _definirEtatChargement(false, null);
+    } catch (e) {
+      _definirEtatChargement(false, 'Erreur lors de la mise à jour: ${e.toString()}');
+      rethrow;
     }
   }
 

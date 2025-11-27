@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
 import '../../modeles_vues/menu_model_vue.dart';
+import '../../modeles_vues/navigation_model_vue.dart';
 
 class EcranMenu extends StatefulWidget {
   const EcranMenu({super.key});
@@ -13,6 +14,7 @@ class EcranMenu extends StatefulWidget {
 
 class _EtatEcranMenu extends State<EcranMenu> {
   final PageController _controleurPage = PageController();
+  int? _dernierIndexNavigation;
 
   @override
   void initState() {
@@ -23,6 +25,23 @@ class _EtatEcranMenu extends State<EcranMenu> {
         menuModel.initialiser();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Détecter le retour sur cet onglet
+    final navigationModel = context.watch<NavigationModelVue>();
+    if (navigationModel.indexActuel == 1 && _dernierIndexNavigation != 1) {
+      // On vient de revenir sur l'onglet Menu
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<MenuModelVue>().initialiser();
+        }
+      });
+    }
+    _dernierIndexNavigation = navigationModel.indexActuel;
   }
 
   @override
@@ -381,51 +400,164 @@ class _EtatEcranMenu extends State<EcranMenu> {
   }
 
   void _afficherDialogueCommande(MenuModelVue menuModel, plat) {
+    // Variables pour stocker les choix de l'utilisateur
+    String siteSelectionne = menuModel.utilisateurConnecte?.site ?? 'CAMPUS';
+    final controleurNotes = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
-        ),
-        title: const Text(
-          'Confirmer la commande',
-          style: TextStyle(
-            color: CouleursApp.bleuFonce,
-            fontWeight: FontWeight.bold,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
           ),
-        ),
-        content: Text(
-          'Voulez-vous commander "${plat.nom}" pour ${menuModel.jourSelectionne.toLowerCase()} ?',
-          style: const TextStyle(
-            color: CouleursApp.grisFonce,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Annuler',
-              style: TextStyle(color: CouleursApp.gris),
+          title: const Text(
+            'Confirmer la commande',
+            style: TextStyle(
+              color: CouleursApp.bleuFonce,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _confirmerCommande(menuModel, plat);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: CouleursApp.bleuFonce,
-              foregroundColor: CouleursApp.blanc,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Plat sélectionné
+                Text(
+                  'Vous commandez "${plat.nom}" pour ${menuModel.jourSelectionne.toLowerCase()}',
+                  style: const TextStyle(
+                    color: CouleursApp.grisFonce,
+                    fontSize: 14,
+                  ),
+                ),
+
+                const SizedBox(height: TaillesApp.espacementMoyen),
+                const Divider(),
+                const SizedBox(height: TaillesApp.espacementMoyen),
+
+                // Site de livraison
+                const Text(
+                  'Site de livraison',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: CouleursApp.bleuFonce,
+                  ),
+                ),
+                const SizedBox(height: TaillesApp.espacementMin),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: CouleursApp.gris),
+                    borderRadius: BorderRadius.circular(TaillesApp.rayonMin),
+                  ),
+                  child: DropdownButton<String>(
+                    value: siteSelectionne,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: ['CAMPUS', 'DANGA'].map((String site) {
+                      return DropdownMenuItem<String>(
+                        value: site,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              color: CouleursApp.bleuPrimaire,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(site),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          siteSelectionne = newValue;
+                        });
+                      }
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: TaillesApp.espacementMoyen),
+
+                // Notes spéciales
+                const Text(
+                  'Notes spéciales (optionnel)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: CouleursApp.bleuFonce,
+                  ),
+                ),
+                const SizedBox(height: TaillesApp.espacementMin),
+                TextField(
+                  controller: controleurNotes,
+                  maxLines: 3,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    hintText: 'Ex: Je veux du piment svp, Sans oignons...',
+                    hintStyle: const TextStyle(
+                      fontSize: 12,
+                      color: CouleursApp.gris,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(TaillesApp.rayonMin),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ],
             ),
-            child: const Text('Confirmer'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () {
+                controleurNotes.dispose();
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Annuler',
+                style: TextStyle(color: CouleursApp.gris),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _confirmerCommande(
+                  menuModel,
+                  plat,
+                  siteSelectionne,
+                  controleurNotes.text.trim(),
+                );
+                controleurNotes.dispose();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: CouleursApp.bleuFonce,
+                foregroundColor: CouleursApp.blanc,
+              ),
+              child: const Text('Confirmer'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Future<void> _confirmerCommande(MenuModelVue menuModel, plat) async {
-    final succes = await menuModel.commanderPlat(plat);
+  Future<void> _confirmerCommande(
+    MenuModelVue menuModel,
+    plat,
+    String siteLivraison,
+    String notesSpeciales,
+  ) async {
+    final succes = await menuModel.commanderPlat(
+      plat,
+      siteLivraison: siteLivraison,
+      notesSpeciales: notesSpeciales,
+    );
 
     if (succes && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

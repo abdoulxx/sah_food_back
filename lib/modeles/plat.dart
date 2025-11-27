@@ -6,7 +6,7 @@ class Plat {
   final String? description;
   final String? allergenes;
   final String? photoUrl;
-  final int? jourSemaine; // 1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi
+  final int? jourSemaine; // 1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi, 6=Samedi, 7=Dimanche
   final DateTime createdAt;
   final int? createdBy;
   final DateTime? updatedAt;

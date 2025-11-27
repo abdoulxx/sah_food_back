@@ -22,6 +22,22 @@ class ServiceSupabase {
   // Helper pour gérer les erreurs
   static String gererErreur(dynamic erreur) {
     if (erreur is AuthException) {
+      // Traduire les messages d'erreur courants en français
+      final message = erreur.message.toLowerCase();
+
+      if (message.contains('email not confirmed')) {
+        return 'Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte mail.';
+      }
+      if (message.contains('invalid login credentials')) {
+        return 'Email ou mot de passe incorrect';
+      }
+      if (message.contains('user already registered')) {
+        return 'Un compte existe déjà avec cet email';
+      }
+      if (message.contains('email rate limit exceeded')) {
+        return 'Trop de tentatives. Veuillez réessayer dans quelques minutes.';
+      }
+
       return erreur.message;
     } else if (erreur is PostgrestException) {
       return erreur.message;

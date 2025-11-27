@@ -15,7 +15,9 @@ import 'modeles_vues/profil_model_vue.dart';
 import 'modeles_vues/historique_model_vue.dart';
 import 'modeles_vues/avis_model_vue.dart';
 import 'services/service_notifications.dart';
-import 'vues/ecran_splash/ecran_splash.dart';
+import 'vues/onboarding/ecran_onboarding.dart';
+import 'vues/navigation/navigation_principale.dart';
+import 'services/service_authentification.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +42,54 @@ void main() async {
   }
 
   runApp(const ApplicationSahFood());
+}
+
+class EcranDemarrage extends StatefulWidget {
+  const EcranDemarrage({super.key});
+
+  @override
+  State<EcranDemarrage> createState() => _EtatEcranDemarrage();
+}
+
+class _EtatEcranDemarrage extends State<EcranDemarrage> {
+  @override
+  void initState() {
+    super.initState();
+    _verifierUtilisateur();
+  }
+
+  Future<void> _verifierUtilisateur() async {
+    await Future.delayed(const Duration(milliseconds: 500)); // Petit délai pour voir le splash natif
+
+    if (!mounted) return;
+
+    final authModel = context.read<AuthentificationModelVue>();
+    await authModel.chargerUtilisateurConnecte();
+
+    if (!mounted) return;
+
+    if (authModel.estConnecte) {
+      // Utilisateur connecté → aller directement à la navigation principale
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const NavigationPrincipale()),
+      );
+    } else {
+      // Pas connecté → aller à l'onboarding
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const EcranOnboarding()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Écran vide transparent - on voit le splash natif
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
 }
 
 class ApplicationSahFood extends StatelessWidget {
@@ -127,7 +177,7 @@ class ApplicationSahFood extends StatelessWidget {
             fillColor: CouleursApp.blanc,
           ),
         ),
-        home: const EcranSplash(),
+        home: const EcranDemarrage(),
       ),
     );
   }

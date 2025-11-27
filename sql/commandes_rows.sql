@@ -1,0 +1,1 @@
+INSERT INTO "public"."commandes" ("id_commande", "id_user", "id_plat", "statut", "created_at", "created_by", "updated_at", "updated_by", "deleted_at", "deleted_by") VALUES ('87', '22', '78', 'EN_ATTENTE', '2025-11-26 10:40:04.257337+00', '22', null, null, null, null);

@@ -1,0 +1,1 @@
+INSERT INTO "public"."avis" ("id_avis", "id_user", "id_plat", "note", "commentaire", "created_at", "created_by", "updated_at", "updated_by", "deleted_at", "deleted_by") VALUES ('14', '22', '79', '3', 'CJKJVVC', '2025-11-21 17:28:49.970108+00', '22', null, null, null, null);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../modeles_vues/avis_model_vue.dart';
 import '../../modeles_vues/authentification_model_vue.dart';
+import '../../modeles_vues/navigation_model_vue.dart';
 import '../../modeles/avis.dart';
 import '../../modeles/commande.dart';
 import '../../core/constantes/couleurs_app.dart';
@@ -15,22 +16,45 @@ class EcranAvis extends StatefulWidget {
 }
 
 class _EcranAvisState extends State<EcranAvis> {
+  int? _dernierIndexNavigation;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Attendre que l'utilisateur soit chargé
-      final authModel = context.read<AuthentificationModelVue>();
-      while (authModel.utilisateurEnCoursDeChargement) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      // Charger les avis une fois que l'utilisateur est prêt
-      if (mounted) {
-        final avisModel = context.read<AvisModelVue>();
-        await avisModel.chargerMesAvis();
-      }
+      _chargerDonnees();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Détecter le retour sur cet onglet
+    final navigationModel = context.watch<NavigationModelVue>();
+    if (navigationModel.indexActuel == 3 && _dernierIndexNavigation != 3) {
+      // On vient de revenir sur l'onglet Avis
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<AvisModelVue>().chargerMesAvis();
+        }
+      });
+    }
+    _dernierIndexNavigation = navigationModel.indexActuel;
+  }
+
+  Future<void> _chargerDonnees() async {
+    // Attendre que l'utilisateur soit chargé
+    final authModel = context.read<AuthentificationModelVue>();
+    while (authModel.utilisateurEnCoursDeChargement) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    // Charger les avis une fois que l'utilisateur est prêt
+    if (mounted) {
+      final avisModel = context.read<AvisModelVue>();
+      await avisModel.chargerMesAvis();
+    }
   }
 
   @override

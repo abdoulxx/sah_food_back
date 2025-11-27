@@ -19,6 +19,7 @@ class EcranAccueil extends StatefulWidget {
 class _EcranAccueilState extends State<EcranAccueil> {
   int _nombreNotificationsNonLues = 0;
   StreamSubscription<int>? _notificationSubscription;
+  int? _dernierIndexNavigation;
 
   @override
   void initState() {
@@ -34,19 +35,40 @@ class _EcranAccueilState extends State<EcranAccueil> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Attendre que l'utilisateur soit chargé
-      final authModel = context.read<AuthentificationModelVue>();
-      while (authModel.utilisateurEnCoursDeChargement) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      // Charger les commandes une fois que l'utilisateur est prêt
-      if (mounted) {
-        final accueilModel = context.read<AccueilModelVue>();
-        accueilModel.chargerCommandesSemaine();
-        _chargerNombreNotifications();
-      }
+      _chargerDonnees();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Détecter le retour sur cet onglet
+    final navigationModel = context.watch<NavigationModelVue>();
+    if (navigationModel.indexActuel == 0 && _dernierIndexNavigation != 0) {
+      // On vient de revenir sur l'onglet Accueil
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<AccueilModelVue>().chargerCommandesSemaine();
+        }
+      });
+    }
+    _dernierIndexNavigation = navigationModel.indexActuel;
+  }
+
+  Future<void> _chargerDonnees() async {
+    // Attendre que l'utilisateur soit chargé
+    final authModel = context.read<AuthentificationModelVue>();
+    while (authModel.utilisateurEnCoursDeChargement) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    // Charger les commandes une fois que l'utilisateur est prêt
+    if (mounted) {
+      final accueilModel = context.read<AccueilModelVue>();
+      accueilModel.chargerCommandesSemaine();
+      _chargerNombreNotifications();
+    }
   }
 
   @override
@@ -459,7 +481,7 @@ class _EcranAccueilState extends State<EcranAccueil> {
           const SizedBox(width: TaillesApp.espacementMin),
 
           SizedBox(
-            width: 70,
+            width: 80,
             child: Text(
               jour,
               style: TextStyle(
@@ -470,7 +492,7 @@ class _EcranAccueilState extends State<EcranAccueil> {
             ),
           ),
 
-          const SizedBox(width: TaillesApp.espacementMin),
+          const SizedBox(width: TaillesApp.espacementMoyen),
 
           Expanded(
             child: Text(
@@ -498,8 +520,8 @@ class _EcranAccueilState extends State<EcranAccueil> {
     // Calculer le lundi de la semaine courante
     final lundi = maintenant.subtract(Duration(days: maintenant.weekday - 1));
 
-    // Calculer le vendredi (4 jours après le lundi)
-    final vendredi = lundi.add(const Duration(days: 4));
+    // Calculer le dimanche (6 jours après le lundi)
+    final dimanche = lundi.add(const Duration(days: 6));
 
     // Formatter les dates
     const mois = [
@@ -508,7 +530,7 @@ class _EcranAccueilState extends State<EcranAccueil> {
     ];
 
     final jourDebut = lundi.day;
-    final jourFin = vendredi.day;
+    final jourFin = dimanche.day;
     final nomMois = mois[lundi.month - 1];
     final annee = lundi.year;
 

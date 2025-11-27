@@ -99,8 +99,6 @@ class _EtatEcranMesInformations extends State<EcranMesInformations> {
               _construireSectionInformationsPersonnelles(profilModel),
               const SizedBox(height: TaillesApp.espacementGrand),
               _construireSectionMotDePasse(profilModel),
-              const SizedBox(height: TaillesApp.espacementGrand),
-              _construireBoutonsSauvegarde(profilModel),
             ],
           );
         },
@@ -188,6 +186,36 @@ class _EtatEcranMesInformations extends State<EcranMesInformations> {
                 fillColor: CouleursApp.grisClair,
               ),
             ),
+
+            const SizedBox(height: TaillesApp.espacementGrand),
+
+            // Bouton Sauvegarder les informations
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: profilModel.estEnChargement
+                    ? null
+                    : () async {
+                        await _sauvegarderInformations(profilModel);
+                      },
+                icon: profilModel.estEnChargement
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: CouleursApp.blanc,
+                        ),
+                      )
+                    : const Icon(Icons.save),
+                label: const Text('Sauvegarder'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: CouleursApp.bleuPrimaire,
+                  foregroundColor: CouleursApp.blanc,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -237,7 +265,7 @@ class _EtatEcranMesInformations extends State<EcranMesInformations> {
                   borderRadius: BorderRadius.circular(TaillesApp.rayonMin),
                   borderSide: const BorderSide(color: CouleursApp.bleuPrimaire),
                 ),
-                helperText: 'Minimum 6 caractères',
+                helperText: 'Minimum 8 caractères',
               ),
             ),
 
@@ -269,7 +297,26 @@ class _EtatEcranMesInformations extends State<EcranMesInformations> {
               ),
             ),
 
-            const SizedBox(height: TaillesApp.espacementMin),
+            const SizedBox(height: TaillesApp.espacementGrand),
+
+            // Bouton Changer le mot de passe
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: profilModel.estEnChargement
+                    ? null
+                    : () async {
+                        await _changerMotDePasse(profilModel);
+                      },
+                icon: const Icon(Icons.lock_reset),
+                label: const Text('Changer le mot de passe'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: CouleursApp.orangePrimaire,
+                  foregroundColor: CouleursApp.blanc,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -297,59 +344,6 @@ class _EtatEcranMesInformations extends State<EcranMesInformations> {
           borderSide: const BorderSide(color: CouleursApp.bleuPrimaire),
         ),
       ),
-    );
-  }
-
-  Widget _construireBoutonsSauvegarde(ProfilModelVue profilModel) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: profilModel.estEnChargement
-                ? null
-                : () async {
-                    await _sauvegarderInformations(profilModel);
-                  },
-            icon: profilModel.estEnChargement
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: CouleursApp.blanc,
-                    ),
-                  )
-                : const Icon(Icons.save),
-            label: const Text('Sauvegarder les Informations'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: CouleursApp.bleuPrimaire,
-              foregroundColor: CouleursApp.blanc,
-            ),
-          ),
-        ),
-
-        const SizedBox(height: TaillesApp.espacementMoyen),
-
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: profilModel.estEnChargement
-                ? null
-                : () async {
-                    await _changerMotDePasse(profilModel);
-                  },
-            icon: const Icon(Icons.security),
-            label: const Text('Changer le Mot de Passe'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: const BorderSide(color: CouleursApp.orangePrimaire),
-              foregroundColor: CouleursApp.orangePrimaire,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -404,10 +398,10 @@ class _EtatEcranMesInformations extends State<EcranMesInformations> {
       return;
     }
 
-    if (_controleurNouveauMotDePasse.text.length < 6) {
+    if (_controleurNouveauMotDePasse.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Le mot de passe doit contenir au moins 6 caractères'),
+          content: Text('Le mot de passe doit contenir au moins 8 caractères'),
           backgroundColor: CouleursApp.erreur,
         ),
       );

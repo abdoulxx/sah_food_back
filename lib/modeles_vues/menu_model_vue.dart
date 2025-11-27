@@ -3,6 +3,7 @@ import '../modeles/menu_jour.dart';
 import '../modeles/plat.dart';
 import '../modeles/menu.dart';
 import '../modeles/commande.dart';
+import '../modeles/utilisateur.dart';
 import '../services/service_menu.dart';
 import '../services/service_commande.dart';
 import 'authentification_model_vue.dart';
@@ -16,7 +17,7 @@ class MenuModelVue extends ChangeNotifier {
   bool _estEnChargement = false;
   String? _messageErreur;
   Menu? _menuSemaineCourante;
-  Set<int> _joursCommandes = {}; // Set des jours de semaine déjà commandés (1-5)
+  Set<int> _joursCommandes = {}; // Set des jours de semaine déjà commandés (1-7)
 
   MenuModelVue(this._authModelVue);
 
@@ -24,6 +25,7 @@ class MenuModelVue extends ChangeNotifier {
   List<MenuJour> get menusHebdomadaires => _menusHebdomadaires;
   bool get estEnChargement => _estEnChargement;
   String? get messageErreur => _messageErreur;
+  Utilisateur? get utilisateurConnecte => _authModelVue.utilisateurConnecte;
 
   static const List<String> joursSemaine = [
     'Lundi',
@@ -31,6 +33,8 @@ class MenuModelVue extends ChangeNotifier {
     'Mercredi',
     'Jeudi',
     'Vendredi',
+    'Samedi',
+    'Dimanche',
   ];
 
   String get jourSelectionne => joursSemaine[_ongletSelectionne];
@@ -123,9 +127,9 @@ class MenuModelVue extends ChangeNotifier {
     final maintenant = DateTime.now();
     final lundi = maintenant.subtract(Duration(days: maintenant.weekday - 1));
 
-    // Organiser les plats par jour_semaine (1=Lundi, 2=Mardi, etc.)
-    return List.generate(5, (index) {
-      final numeroJour = index + 1; // 1 = Lundi, 2 = Mardi, etc.
+    // Organiser les plats par jour_semaine (1=Lundi, 2=Mardi, ..., 7=Dimanche)
+    return List.generate(7, (index) {
+      final numeroJour = index + 1; // 1 = Lundi, 2 = Mardi, ..., 7 = Dimanche
 
       // Filtrer les plats pour ce jour spécifique
       final platsJour = plats.where((plat) => plat.jourSemaine == numeroJour).toList();
@@ -139,7 +143,11 @@ class MenuModelVue extends ChangeNotifier {
     });
   }
 
-  Future<bool> commanderPlat(Plat plat) async {
+  Future<bool> commanderPlat(
+    Plat plat, {
+    required String siteLivraison,
+    String? notesSpeciales,
+  }) async {
     try {
       final utilisateur = _authModelVue.utilisateurConnecte;
       if (utilisateur == null) {
@@ -162,17 +170,18 @@ class MenuModelVue extends ChangeNotifier {
       );
 
       if (aDejaCommande) {
-        final jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-        final nomJour = jours[plat.jourSemaine! - 1];
+        final nomJour = joursSemaine[plat.jourSemaine! - 1];
         _messageErreur = 'Vous avez déjà passé une commande pour $nomJour';
         notifyListeners();
         return false;
       }
 
-      // Créer la commande
+      // Créer la commande avec site de livraison et notes spéciales
       await ServiceCommande.creerCommande(
         idUser: utilisateur.idUser,
         idPlat: plat.idPlat,
+        siteLivraison: siteLivraison,
+        notesSpeciales: notesSpeciales?.isNotEmpty == true ? notesSpeciales : null,
       );
 
       // Ajouter le jour aux jours commandés

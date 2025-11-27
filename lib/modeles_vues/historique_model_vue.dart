@@ -185,4 +185,64 @@ class HistoriqueModelVue extends ChangeNotifier {
       return false;
     }
   }
+
+  /// Modifier le site de livraison d'une commande
+  Future<bool> modifierSiteCommande({
+    required int idCommande,
+    required String nouveauSite,
+  }) async {
+    _definirEtatChargement(true, null);
+
+    try {
+      final utilisateur = _authModelVue.utilisateurConnecte;
+      if (utilisateur == null) {
+        throw Exception('Utilisateur non connecté');
+      }
+
+      await ServiceCommande.modifierSiteLivraison(
+        idCommande: idCommande,
+        nouveauSite: nouveauSite,
+        modifiePar: utilisateur.idUser,
+      );
+
+      // Recharger l'historique
+      await chargerHistorique();
+
+      _definirEtatChargement(false, null);
+      return true;
+    } catch (e) {
+      _definirEtatChargement(false, e.toString().replaceAll('Exception: ', ''));
+      return false;
+    }
+  }
+
+  /// Modifier les notes spéciales d'une commande
+  Future<bool> modifierNotesCommande({
+    required int idCommande,
+    required String nouvellesNotes,
+  }) async {
+    _definirEtatChargement(true, null);
+
+    try {
+      final utilisateur = _authModelVue.utilisateurConnecte;
+      if (utilisateur == null) {
+        throw Exception('Utilisateur non connecté');
+      }
+
+      await ServiceCommande.modifierNotesSpeciales(
+        idCommande: idCommande,
+        nouvellesNotes: nouvellesNotes.isNotEmpty ? nouvellesNotes : null,
+        modifiePar: utilisateur.idUser,
+      );
+
+      // Recharger l'historique
+      await chargerHistorique();
+
+      _definirEtatChargement(false, null);
+      return true;
+    } catch (e) {
+      _definirEtatChargement(false, e.toString().replaceAll('Exception: ', ''));
+      return false;
+    }
+  }
 }

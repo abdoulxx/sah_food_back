@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
 import '../../modeles_vues/profil_model_vue.dart';
+import '../../services/service_upload.dart';
 import '../authentification/ecran_connexion.dart';
 import 'ecran_mes_informations.dart';
 
@@ -37,6 +40,9 @@ class EcranProfil extends StatelessWidget {
             color: CouleursApp.grisClair,
             child: Consumer<ProfilModelVue>(
               builder: (context, profilModel, child) {
+                // Définir le context pour le ProfilModelVue
+                profilModel.definirContext(context);
+
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!profilModel.estConnecte) {
                     profilModel.initialiser();
@@ -120,22 +126,53 @@ class EcranProfil extends StatelessWidget {
         padding: const EdgeInsets.all(TaillesApp.espacementMoyen),
         child: Column(
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: const BoxDecoration(
-                color: CouleursApp.bleuPrimaire,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '${utilisateur.prenom[0]}${utilisateur.nom[0]}',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: CouleursApp.blanc,
+            GestureDetector(
+              onTap: () => _changerPhotoProfil(profilModel),
+              child: Stack(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: CouleursApp.bleuPrimaire,
+                      shape: BoxShape.circle,
+                      image: utilisateur.photo != null
+                          ? DecorationImage(
+                              image: NetworkImage(utilisateur.photo!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: utilisateur.photo == null
+                        ? Center(
+                            child: Text(
+                              '${utilisateur.prenom[0]}${utilisateur.nom[0]}',
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: CouleursApp.blanc,
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
-                ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: CouleursApp.orangePrimaire,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        color: CouleursApp.blanc,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: TaillesApp.espacementMin),
@@ -283,6 +320,189 @@ class EcranProfil extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _changerPhotoProfil(ProfilModelVue profilModel) {
+    // Pour l'instant, on affiche juste une dialogue avec les options
+    // L'implémentation complète nécessitera image_picker
+    if (profilModel.context == null) return;
+
+    showDialog(
+      context: profilModel.context!,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+        ),
+        title: const Text(
+          'Photo de profil',
+          style: TextStyle(
+            color: CouleursApp.bleuFonce,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: CouleursApp.bleuPrimaire),
+              title: const Text('Prendre une photo'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _prendrePhoto(profilModel);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: CouleursApp.bleuPrimaire),
+              title: const Text('Choisir depuis la galerie'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _choisirGalerie(profilModel);
+              },
+            ),
+            if (profilModel.utilisateurConnecte?.photo != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: CouleursApp.erreur),
+                title: const Text(
+                  'Supprimer la photo',
+                  style: TextStyle(color: CouleursApp.erreur),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _supprimerPhoto(profilModel);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _prendrePhoto(ProfilModelVue profilModel) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        await _uploaderEtEnregistrerPhoto(File(image.path), profilModel);
+      }
+    } catch (e) {
+      if (profilModel.context != null && profilModel.context!.mounted) {
+        ScaffoldMessenger.of(profilModel.context!).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la prise de photo: $e'),
+            backgroundColor: CouleursApp.erreur,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _choisirGalerie(ProfilModelVue profilModel) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        await _uploaderEtEnregistrerPhoto(File(image.path), profilModel);
+      }
+    } catch (e) {
+      if (profilModel.context != null && profilModel.context!.mounted) {
+        ScaffoldMessenger.of(profilModel.context!).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors du choix de la photo: $e'),
+            backgroundColor: CouleursApp.erreur,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploaderEtEnregistrerPhoto(File fichierImage, ProfilModelVue profilModel) async {
+    final utilisateur = profilModel.utilisateurConnecte;
+    if (utilisateur == null) return;
+
+    if (profilModel.context != null && profilModel.context!.mounted) {
+      // Afficher un indicateur de chargement
+      showDialog(
+        context: profilModel.context!,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            color: CouleursApp.bleuPrimaire,
+          ),
+        ),
+      );
+    }
+
+    try {
+      // Upload vers Supabase Storage
+      final urlPhoto = await ServiceUpload.uploaderPhotoProfil(
+        fichierImage: fichierImage,
+        idUser: utilisateur.idUser,
+      );
+
+      // Mettre à jour le profil avec la nouvelle URL
+      await profilModel.mettreAJourPhoto(urlPhoto);
+
+      // Fermer l'indicateur de chargement
+      if (profilModel.context != null && profilModel.context!.mounted) {
+        Navigator.of(profilModel.context!).pop();
+
+        // Afficher un message de succès
+        ScaffoldMessenger.of(profilModel.context!).showSnackBar(
+          const SnackBar(
+            content: Text('Photo de profil mise à jour avec succès'),
+            backgroundColor: CouleursApp.succes,
+          ),
+        );
+      }
+    } catch (e) {
+      // Fermer l'indicateur de chargement
+      if (profilModel.context != null && profilModel.context!.mounted) {
+        Navigator.of(profilModel.context!).pop();
+
+        // Afficher un message d'erreur
+        ScaffoldMessenger.of(profilModel.context!).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'upload: $e'),
+            backgroundColor: CouleursApp.erreur,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _supprimerPhoto(ProfilModelVue profilModel) async {
+    try {
+      await profilModel.supprimerPhoto();
+      if (profilModel.context != null && profilModel.context!.mounted) {
+        ScaffoldMessenger.of(profilModel.context!).showSnackBar(
+          const SnackBar(
+            content: Text('Photo de profil supprimée'),
+            backgroundColor: CouleursApp.succes,
+          ),
+        );
+      }
+    } catch (e) {
+      if (profilModel.context != null && profilModel.context!.mounted) {
+        ScaffoldMessenger.of(profilModel.context!).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: CouleursApp.erreur,
+          ),
+        );
+      }
+    }
   }
 
 }
