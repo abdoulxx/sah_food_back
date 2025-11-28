@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../modeles_vues/avis_model_vue.dart';
 import '../../modeles_vues/authentification_model_vue.dart';
 import '../../modeles_vues/navigation_model_vue.dart';
 import '../../modeles/avis.dart';
 import '../../modeles/commande.dart';
+import '../../services/service_interactions.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class EcranAvis extends StatefulWidget {
   const EcranAvis({super.key});
@@ -86,8 +89,17 @@ class _EcranAvisState extends State<EcranAvis> {
             child: Consumer<AvisModelVue>(
               builder: (context, model, child) {
                 if (model.estEnChargement) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
+                  return const Padding(
+                    padding: EdgeInsets.all(TaillesApp.espacementMoyen),
+                    child: Column(
+                      children: [
+                        SkeletonListItem(),
+                        SizedBox(height: TaillesApp.espacementMoyen),
+                        SkeletonListItem(),
+                        SizedBox(height: TaillesApp.espacementMoyen),
+                        SkeletonListItem(),
+                      ],
+                    ),
                   );
                 }
 
@@ -177,7 +189,10 @@ class _EcranAvisState extends State<EcranAvis> {
                 final commande = commandesValidees[index];
                 final avisExistant = model.obtenirAvisPourCommande(commande.idCommande);
 
-                return _construireCarteCommande(commande, avisExistant, model);
+                return _construireCarteCommande(commande, avisExistant, model)
+                    .animate()
+                    .fadeIn(duration: 300.ms, delay: (index * 80).ms)
+                    .slideX(begin: -0.1, end: 0, duration: 300.ms, delay: (index * 80).ms, curve: Curves.easeOutQuad);
               },
             ),
     );
@@ -529,7 +544,8 @@ class _DialogueAjoutAvisState extends State<_DialogueAjoutAvis> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
                 return GestureDetector(
-                  onTap: () {
+                  onTap: () async {
+                    await ServiceInteractions.vibrationLegere();
                     setState(() {
                       _noteSelectionnee = index + 1;
                     });
@@ -605,20 +621,38 @@ class _DialogueAjoutAvisState extends State<_DialogueAjoutAvis> {
       Navigator.of(context).pop();
 
       if (succes) {
+        await ServiceInteractions.vibrationSucces();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_estModification
-                ? 'Avis modifié avec succès !'
-                : 'Avis publié avec succès !'),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: CouleursApp.blanc),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_estModification
+                      ? 'Avis modifié avec succès !'
+                      : 'Avis publié avec succès !'),
+                ),
+              ],
+            ),
             backgroundColor: CouleursApp.succes,
           ),
         );
       } else {
+        await ServiceInteractions.vibrationErreur();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_estModification
-                ? 'Erreur lors de la modification de l\'avis'
-                : 'Erreur lors de la publication de l\'avis'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: CouleursApp.blanc),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_estModification
+                      ? 'Erreur lors de la modification de l\'avis'
+                      : 'Erreur lors de la publication de l\'avis'),
+                ),
+              ],
+            ),
             backgroundColor: CouleursApp.erreur,
           ),
         );

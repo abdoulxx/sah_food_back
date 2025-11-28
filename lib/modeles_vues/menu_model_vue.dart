@@ -6,6 +6,7 @@ import '../modeles/commande.dart';
 import '../modeles/utilisateur.dart';
 import '../services/service_menu.dart';
 import '../services/service_commande.dart';
+import '../services/service_avis.dart';
 import 'authentification_model_vue.dart';
 
 
@@ -18,6 +19,7 @@ class MenuModelVue extends ChangeNotifier {
   String? _messageErreur;
   Menu? _menuSemaineCourante;
   Set<int> _joursCommandes = {}; // Set des jours de semaine déjà commandés (1-7)
+  Map<int, double> _notesMoyennesPlats = {}; // Notes moyennes des plats par idPlat
 
   MenuModelVue(this._authModelVue);
 
@@ -26,6 +28,16 @@ class MenuModelVue extends ChangeNotifier {
   bool get estEnChargement => _estEnChargement;
   String? get messageErreur => _messageErreur;
   Utilisateur? get utilisateurConnecte => _authModelVue.utilisateurConnecte;
+
+  /// Obtenir la note moyenne d'un plat
+  double obtenirNoteMoyennePlat(int idPlat) {
+    return _notesMoyennesPlats[idPlat] ?? 0.0;
+  }
+
+  /// Obtenir le nombre d'avis d'un plat (approximatif basé sur si la note existe)
+  bool platADesAvis(int idPlat) {
+    return _notesMoyennesPlats.containsKey(idPlat) && _notesMoyennesPlats[idPlat]! > 0;
+  }
 
   static const List<String> joursSemaine = [
     'Lundi',
@@ -90,6 +102,9 @@ class MenuModelVue extends ChangeNotifier {
       // Charger les commandes de la semaine pour afficher les indicateurs
       await _chargerCommandesSemaine();
 
+      // Charger les notes moyennes des plats
+      await _chargerNotesMoyennesPlats();
+
       _estEnChargement = false;
       notifyListeners();
     } catch (erreur) {
@@ -120,6 +135,29 @@ class MenuModelVue extends ChangeNotifier {
           .toSet();
     } catch (e) {
       _joursCommandes = {};
+    }
+  }
+
+  Future<void> _chargerNotesMoyennesPlats() async {
+    _notesMoyennesPlats.clear();
+
+    // Récupérer tous les plats de la semaine
+    final tousLesPlats = <Plat>[];
+    for (final menuJour in _menusHebdomadaires) {
+      tousLesPlats.addAll(menuJour.plats);
+    }
+
+    // Charger la note moyenne de chaque plat
+    for (final plat in tousLesPlats) {
+      try {
+        final noteMoyenne = await ServiceAvis.obtenirNoteMoyennePlat(plat.idPlat);
+        if (noteMoyenne > 0) {
+          _notesMoyennesPlats[plat.idPlat] = noteMoyenne;
+        }
+      } catch (e) {
+        // Ignorer les erreurs de chargement de note
+        print('Erreur chargement note plat ${plat.idPlat}: $e');
+      }
     }
   }
 

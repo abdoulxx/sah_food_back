@@ -183,6 +183,21 @@ class ServiceAuthentification {
     return ServiceSupabase.auth.currentUser != null;
   }
 
+  /// Vérifier le mot de passe de l'utilisateur
+  /// Retourne true si le mot de passe est correct, false sinon
+  static Future<bool> verifierMotDePasse(String email, String motDePasse) async {
+    try {
+      // Tenter de se connecter avec les identifiants fournis
+      await ServiceSupabase.auth.signInWithPassword(
+        email: email,
+        password: motDePasse,
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Réinitialiser le mot de passe
   static Future<void> reinitialiserMotDePasse(String email) async {
     try {

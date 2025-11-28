@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../modeles_vues/historique_model_vue.dart';
 import '../../modeles_vues/authentification_model_vue.dart';
 import '../../modeles_vues/navigation_model_vue.dart';
 import '../../modeles/commande.dart';
 import '../../services/service_menu.dart';
+import '../../services/service_interactions.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class EcranHistorique extends StatefulWidget {
   const EcranHistorique({super.key});
@@ -92,8 +95,17 @@ class _EcranHistoriqueState extends State<EcranHistorique> {
             child: Consumer<HistoriqueModelVue>(
               builder: (context, model, child) {
                 if (model.estEnChargement) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
+                  return const Padding(
+                    padding: EdgeInsets.all(TaillesApp.espacementMoyen),
+                    child: Column(
+                      children: [
+                        SkeletonListItem(),
+                        SizedBox(height: TaillesApp.espacementMoyen),
+                        SkeletonListItem(),
+                        SizedBox(height: TaillesApp.espacementMoyen),
+                        SkeletonListItem(),
+                      ],
+                    ),
                   );
                 }
 
@@ -235,8 +247,13 @@ class _EcranHistoriqueState extends State<EcranHistorique> {
         padding: const EdgeInsets.all(TaillesApp.espacementMoyen),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: joursTries.map((jour) {
-            return _construireGroupeJour(jour, commandesParJour[jour]!);
+          children: joursTries.asMap().entries.map((entry) {
+            final index = entry.key;
+            final jour = entry.value;
+            return _construireGroupeJour(jour, commandesParJour[jour]!)
+                .animate()
+                .fadeIn(duration: 300.ms, delay: (index * 100).ms)
+                .slideX(begin: -0.1, end: 0, duration: 300.ms, delay: (index * 100).ms, curve: Curves.easeOutQuad);
           }).toList(),
         ),
       ),
@@ -334,7 +351,10 @@ class _EcranHistoriqueState extends State<EcranHistorique> {
             // Bouton modifier si en attente
             if (commande.statut == StatutCommande.enAttente)
               ElevatedButton(
-                onPressed: () => _afficherOptionsModification(commande),
+                onPressed: () async {
+                  await ServiceInteractions.vibrationLegere();
+                  _afficherOptionsModification(commande);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: CouleursApp.bleuPrimaire,
                   foregroundColor: Colors.white,

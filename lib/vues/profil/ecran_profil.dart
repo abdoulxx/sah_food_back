@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
+import '../../core/constantes/app_info.dart';
 import '../../modeles_vues/profil_model_vue.dart';
 import '../../services/service_upload.dart';
+import '../../services/service_interactions.dart';
 import '../authentification/ecran_connexion.dart';
 import 'ecran_mes_informations.dart';
 
@@ -228,6 +230,7 @@ class EcranProfil extends StatelessWidget {
       ),
       child: Column(
         children: [
+          // Mes Informations
           ListTile(
             leading: const Icon(
               Icons.person,
@@ -236,34 +239,100 @@ class EcranProfil extends StatelessWidget {
             title: const Text('Mes Informations'),
             subtitle: const Text('Modifier profil et mot de passe'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const EcranMesInformations(),
-                ),
-              );
+            onTap: () async {
+              await ServiceInteractions.vibrationLegere();
+              if (context.mounted) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const EcranMesInformations(),
+                  ),
+                );
+              }
             },
           ),
 
           const Divider(),
 
+          // Notifications
           ListTile(
             leading: const Icon(
-              Icons.chat_outlined,
+              Icons.notifications_outlined,
               color: CouleursApp.bleuPrimaire,
             ),
-            title: const Text('Nous Contacter'),
-            subtitle: const Text('Support via WhatsApp'),
+            title: const Text('Notifications'),
+            subtitle: const Text('Activer/désactiver les alertes'),
+            trailing: Switch(
+              value: profilModel.notificationsActivees,
+              onChanged: (valeur) async {
+                await ServiceInteractions.vibrationLegere();
+                await profilModel.basculerNotifications(valeur);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            valeur ? Icons.notifications_active : Icons.notifications_off,
+                            color: CouleursApp.blanc,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(valeur
+                              ? 'Notifications activées'
+                              : 'Notifications désactivées'),
+                        ],
+                      ),
+                      backgroundColor: CouleursApp.succes,
+                    ),
+                  );
+                }
+              },
+              activeColor: CouleursApp.orangePrimaire,
+            ),
+          ),
+
+          const Divider(),
+
+          // À propos
+          ListTile(
+            leading: const Icon(
+              Icons.info_outlined,
+              color: CouleursApp.bleuPrimaire,
+            ),
+            title: const Text('À propos'),
+            subtitle: const Text('Version et informations'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('bientot')),
-              );
+            onTap: () async {
+              await ServiceInteractions.vibrationLegere();
+              if (context.mounted) {
+                _afficherAPropos(context);
+              }
             },
           ),
 
           const Divider(),
 
+          // Supprimer mon compte
+          ListTile(
+            leading: const Icon(
+              Icons.delete_forever,
+              color: CouleursApp.erreur,
+            ),
+            title: const Text(
+              'Supprimer mon compte',
+              style: TextStyle(color: CouleursApp.erreur),
+            ),
+            subtitle: const Text('Suppression définitive'),
+            onTap: () async {
+              await ServiceInteractions.vibrationLegere();
+              if (context.mounted) {
+                _confirmerSuppressionCompte(context, profilModel);
+              }
+            },
+          ),
+
+          const Divider(),
+
+          // Se déconnecter
           ListTile(
             leading: const Icon(
               Icons.logout,
@@ -503,6 +572,308 @@ class EcranProfil extends StatelessWidget {
         );
       }
     }
+  }
+
+  void _afficherAPropos(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: CouleursApp.bleuPrimaire.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.restaurant_menu,
+                color: CouleursApp.bleuPrimaire,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              AppInfo.nomApp,
+              style: TextStyle(
+                color: CouleursApp.bleuFonce,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppInfo.description,
+              style: const TextStyle(
+                fontSize: 14,
+                color: CouleursApp.grisFonce,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: CouleursApp.gris),
+                const SizedBox(width: 8),
+                Text(
+                  'Version ${AppInfo.version}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: CouleursApp.gris,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              AppInfo.copyright,
+              style: const TextStyle(
+                fontSize: 12,
+                color: CouleursApp.gris,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmerSuppressionCompte(BuildContext context, ProfilModelVue profilModel) {
+    final controleurMotDePasse = TextEditingController();
+    final screenContext = context;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: CouleursApp.erreur, size: 32),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Supprimer mon compte',
+                style: TextStyle(
+                  color: CouleursApp.erreur,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Cette action est irréversible. Votre compte et toutes vos données seront définitivement supprimés.',
+              style: TextStyle(
+                fontSize: 14,
+                color: CouleursApp.grisFonce,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Pour confirmer, entrez votre mot de passe :',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controleurMotDePasse,
+              obscureText: true,
+              decoration: InputDecoration(
+                hintText: 'Mot de passe',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TaillesApp.rayonMin),
+                ),
+                prefixIcon: const Icon(Icons.lock_outline),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              controleurMotDePasse.dispose();
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: CouleursApp.gris),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final motDePasse = controleurMotDePasse.text.trim();
+              if (motDePasse.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Veuillez entrer votre mot de passe'),
+                    backgroundColor: CouleursApp.erreur,
+                  ),
+                );
+                return;
+              }
+
+              // Fermer le dialogue de confirmation
+              Navigator.of(dialogContext).pop();
+
+              // Afficher un loader unique
+              showDialog(
+                context: screenContext,
+                barrierDismissible: false,
+                builder: (loaderContext) => WillPopScope(
+                  onWillPop: () async => false,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: CouleursApp.bleuPrimaire,
+                    ),
+                  ),
+                ),
+              );
+
+              // Supprimer le compte
+              final succes = await profilModel.supprimerCompte(motDePasse);
+
+              // Fermer le loader
+              if (screenContext.mounted) {
+                Navigator.of(screenContext).pop();
+              }
+
+              if (succes && screenContext.mounted) {
+                // Vibration d'erreur pour gravité de l'action
+                await ServiceInteractions.vibrationErreur();
+
+                controleurMotDePasse.dispose();
+
+                // Rediriger vers l'écran de connexion
+                Navigator.of(screenContext, rootNavigator: true).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => const EcranConnexion(),
+                  ),
+                  (route) => false,
+                );
+
+                // Afficher un message
+                if (screenContext.mounted) {
+                  ScaffoldMessenger.of(screenContext).showSnackBar(
+                    const SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: CouleursApp.blanc),
+                          SizedBox(width: 8),
+                          Expanded(child: Text('Votre compte a été supprimé')),
+                        ],
+                      ),
+                      backgroundColor: CouleursApp.succes,
+                    ),
+                  );
+                }
+              } else if (!succes && screenContext.mounted) {
+                // Vibration d'erreur
+                await ServiceInteractions.vibrationErreur();
+
+                controleurMotDePasse.dispose();
+
+                // Afficher l'erreur et permettre de réessayer
+                final reessayer = await showDialog<bool>(
+                  context: screenContext,
+                  barrierDismissible: false,
+                  builder: (errorContext) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
+                    ),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.error_outline, color: CouleursApp.erreur, size: 32),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Erreur',
+                            style: TextStyle(
+                              color: CouleursApp.erreur,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cancel_outlined,
+                          color: CouleursApp.erreur,
+                          size: 64,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          profilModel.messageErreur ?? 'Erreur lors de la suppression',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: CouleursApp.grisFonce,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(errorContext).pop(false);
+                        },
+                        child: const Text(
+                          'Annuler',
+                          style: TextStyle(color: CouleursApp.gris),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await ServiceInteractions.vibrationLegere();
+                          Navigator.of(errorContext).pop(true);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: CouleursApp.orangePrimaire,
+                        ),
+                        child: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
+                );
+
+                // Si l'utilisateur veut réessayer, réouvrir le dialogue
+                if (reessayer == true && screenContext.mounted) {
+                  await ServiceInteractions.vibrationLegere();
+                  _confirmerSuppressionCompte(screenContext, profilModel);
+                }
+                // Sinon on ne fait rien, on reste sur la page profil
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CouleursApp.erreur,
+            ),
+            child: const Text('Supprimer définitivement'),
+          ),
+        ],
+      ),
+    );
   }
 
 }

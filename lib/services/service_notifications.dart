@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../modeles/notification_model.dart';
 import 'service_historique_notifications.dart';
 
@@ -66,8 +67,15 @@ class ServiceNotifications {
   /// Configurer Firebase Cloud Messaging
   static Future<void> _configurerFirebaseMessaging() async {
     // Gérer les notifications quand l'app est en foreground
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       print('Notification reçue en foreground: ${message.notification?.title}');
+
+      // Vérifier si les notifications sont activées
+      final notificationsActivees = await _verifierNotificationsActivees();
+      if (!notificationsActivees) {
+        print('🔕 Notifications désactivées - notification ignorée');
+        return;
+      }
 
       // Sauvegarder dans l'historique
       if (message.notification != null) {
@@ -270,5 +278,15 @@ class ServiceNotifications {
       print('Token FCM rafraîchi: $newToken');
       onTokenRefresh(newToken);
     });
+  }
+
+  /// Vérifier si les notifications sont activées dans les préférences
+  static Future<bool> _verifierNotificationsActivees() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('notifications_activees') ?? true;
+    } catch (e) {
+      return true; // Par défaut, activées
+    }
   }
 }

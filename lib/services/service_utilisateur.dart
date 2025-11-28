@@ -109,4 +109,42 @@ class ServiceUtilisateur {
       throw Exception(ServiceSupabase.gererErreur(e));
     }
   }
+
+  /// Supprimer le token FCM de l'utilisateur
+  static Future<void> supprimerTokenFCM(int idUser) async {
+    try {
+      await ServiceSupabase.utilisateurs
+          .update({
+            'fcm_token': null,
+            'updated_at': DateTime.now().toIso8601String(),
+            'updated_by': idUser,
+          })
+          .eq('id_user', idUser);
+
+      print('🔕 Token FCM supprimé pour user $idUser');
+    } catch (e) {
+      throw Exception(ServiceSupabase.gererErreur(e));
+    }
+  }
+
+  /// Supprimer le compte de l'utilisateur (soft delete)
+  static Future<Utilisateur> supprimerCompte(int idUser) async {
+    try {
+      final reponse = await ServiceSupabase.utilisateurs
+          .update({
+            'deleted_at': DateTime.now().toIso8601String(),
+            'deleted_by': idUser,
+            'updated_at': DateTime.now().toIso8601String(),
+            'updated_by': idUser,
+          })
+          .eq('id_user', idUser)
+          .select()
+          .single();
+
+      print('🗑️ Compte supprimé (soft delete) pour user $idUser');
+      return Utilisateur.fromJson(reponse);
+    } catch (e) {
+      throw Exception(ServiceSupabase.gererErreur(e));
+    }
+  }
 }

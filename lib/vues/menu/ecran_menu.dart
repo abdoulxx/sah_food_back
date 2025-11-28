@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
 import '../../modeles_vues/menu_model_vue.dart';
 import '../../modeles_vues/navigation_model_vue.dart';
+import '../../services/service_interactions.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class EcranMenu extends StatefulWidget {
   const EcranMenu({super.key});
@@ -19,6 +22,7 @@ class _EtatEcranMenu extends State<EcranMenu> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final menuModel = context.read<MenuModelVue>();
       if (menuModel.menusHebdomadaires.isEmpty) {
@@ -61,7 +65,18 @@ class _EtatEcranMenu extends State<EcranMenu> {
               child: Container(
                 color: CouleursApp.grisClair,
                 child: menuModel.estEnChargement
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const SingleChildScrollView(
+                        child: Padding(
+                          padding: EdgeInsets.all(TaillesApp.espacementMoyen),
+                          child: Column(
+                            children: [
+                              SkeletonPlatCard(),
+                              SizedBox(height: TaillesApp.espacementMoyen),
+                              SkeletonPlatCard(),
+                            ],
+                          ),
+                        ),
+                      )
                     : Column(
                         children: [
                           _construireOnglets(menuModel),
@@ -209,10 +224,23 @@ class _EtatEcranMenu extends State<EcranMenu> {
               ),
             )
           else
-            ...plats.map((plat) => _construirePlatDuJour(
-              menuModel,
-              plat: plat,
-            )).toList(),
+            ...plats.asMap().entries.map((entry) {
+              final index = entry.key;
+              final plat = entry.value;
+              return _construirePlatDuJour(
+                menuModel,
+                plat: plat,
+              ).animate().fadeIn(
+                duration: 300.ms,
+                delay: (index * 100).ms,
+              ).slideY(
+                begin: 0.2,
+                end: 0,
+                duration: 300.ms,
+                delay: (index * 100).ms,
+                curve: Curves.easeOutQuad,
+              );
+            }).toList(),
 
           const SizedBox(height: TaillesApp.espacementTresGrand),
         ],
@@ -283,18 +311,19 @@ class _EtatEcranMenu extends State<EcranMenu> {
                       ),
               ),
 
-              if (plat.allergenes != null && plat.allergenes!.isNotEmpty)
+              // Badge note moyenne avec étoiles
+              if (menuModel.platADesAvis(plat.idPlat))
                 Positioned(
                   top: 8,
                   right: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 3,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: CouleursApp.erreur,
-                      borderRadius: BorderRadius.circular(8),
+                      color: CouleursApp.orangePrimaire,
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.3),
@@ -307,15 +336,15 @@ class _EtatEcranMenu extends State<EcranMenu> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.warning_amber_rounded,
+                          Icons.star,
                           color: CouleursApp.blanc,
-                          size: 12,
+                          size: 14,
                         ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: 4),
                         Text(
-                          plat.allergenes!,
+                          menuModel.obtenirNoteMoyennePlat(plat.idPlat).toStringAsFixed(1),
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             color: CouleursApp.blanc,
                             fontWeight: FontWeight.bold,
                           ),
@@ -560,20 +589,39 @@ class _EtatEcranMenu extends State<EcranMenu> {
     );
 
     if (succes && mounted) {
+      // 🎉 HAPTIC FEEDBACK
+      await ServiceInteractions.vibrationSucces();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Commande confirmée: ${plat.nom}'),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: CouleursApp.blanc),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Commande confirmée: ${plat.nom}')),
+            ],
+          ),
           backgroundColor: CouleursApp.succes,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(TaillesApp.rayonMoyen),
           ),
+          duration: const Duration(seconds: 3),
         ),
       );
     } else if (!succes && mounted) {
+      // ❌ HAPTIC FEEDBACK D'ERREUR
+      await ServiceInteractions.vibrationErreur();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur lors de la commande: ${menuModel.messageErreur}'),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: CouleursApp.blanc),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Erreur lors de la commande: ${menuModel.messageErreur}')),
+            ],
+          ),
           backgroundColor: CouleursApp.erreur,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(

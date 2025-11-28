@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/constantes/couleurs_app.dart';
 import '../../core/constantes/tailles_app.dart';
 import '../../modeles_vues/accueil_model_vue.dart';
 import '../../modeles_vues/authentification_model_vue.dart';
 import '../../modeles_vues/navigation_model_vue.dart';
 import '../../services/service_historique_notifications.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../notifications/ecran_historique_notifications.dart';
 
 class EcranAccueil extends StatefulWidget {
@@ -97,16 +99,69 @@ class _EcranAccueilState extends State<EcranAccueil> {
               child: Container(
                 color: CouleursApp.grisClair,
                 child: accueilModel.estEnChargement
-                    ? const Center(child: CircularProgressIndicator())
+                    ? SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            // Header skeleton
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(TaillesApp.espacementMoyen),
+                              decoration: const BoxDecoration(
+                                color: CouleursApp.bleuPrimaire,
+                                borderRadius: BorderRadius.only(
+                                  bottomLeft: Radius.circular(TaillesApp.rayonGrand),
+                                  bottomRight: Radius.circular(TaillesApp.rayonGrand),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SkeletonLoader(
+                                    width: 150,
+                                    height: 20,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  SkeletonLoader(
+                                    width: 100,
+                                    height: 16,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Card skeletons
+                            const Padding(
+                              padding: EdgeInsets.all(TaillesApp.espacementMoyen),
+                              child: Column(
+                                children: [
+                                  SkeletonListItem(),
+                                  SizedBox(height: TaillesApp.espacementMoyen),
+                                  SkeletonListItem(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                     : RefreshIndicator(
                         onRefresh: () => accueilModel.chargerCommandesSemaine(),
                         child: SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           child: Column(
                             children: [
-                              _construireHeaderUtilisateur(accueilModel),
-                              _construireResumeSemaine(accueilModel),
-                              _construireResumeHebdomadaire(accueilModel),
+                              _construireHeaderUtilisateur(accueilModel)
+                                  .animate()
+                                  .fadeIn(duration: 300.ms)
+                                  .slideY(begin: -0.2, end: 0, duration: 300.ms, curve: Curves.easeOutQuad),
+                              _construireResumeSemaine(accueilModel)
+                                  .animate()
+                                  .fadeIn(duration: 300.ms, delay: 100.ms)
+                                  .slideY(begin: 0.2, end: 0, duration: 300.ms, delay: 100.ms, curve: Curves.easeOutQuad),
+                              _construireResumeHebdomadaire(accueilModel)
+                                  .animate()
+                                  .fadeIn(duration: 300.ms, delay: 200.ms)
+                                  .slideY(begin: 0.2, end: 0, duration: 300.ms, delay: 200.ms, curve: Curves.easeOutQuad),
                             ],
                           ),
                         ),
@@ -434,7 +489,9 @@ class _EcranAccueilState extends State<EcranAccueil> {
                       ),
                     ],
                   ),
-                );
+                )
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .shimmer(duration: 2000.ms, color: CouleursApp.blanc.withValues(alpha: 0.3));
               },
             ),
           ),
