@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/service_authentification.dart';
+import '../services/service_notifications.dart';
+import '../services/service_utilisateur.dart';
 import '../modeles/utilisateur.dart';
 
 class AuthentificationModelVue extends ChangeNotifier {
@@ -24,9 +28,40 @@ class AuthentificationModelVue extends ChangeNotifier {
       _utilisateurConnecte = await ServiceAuthentification.obtenirUtilisateurConnecte();
       _utilisateurEnCoursDeChargement = false;
       notifyListeners();
+
+      // Réenregistrer le token FCM si l'utilisateur est connecté et notifications activées
+      if (_utilisateurConnecte != null && !kIsWeb) {
+        await _reEnregistrerTokenFCM();
+      }
     } catch (e) {
       _utilisateurEnCoursDeChargement = false;
       notifyListeners();
+    }
+  }
+
+  /// Réenregistrer le token FCM au démarrage de l'app
+  Future<void> _reEnregistrerTokenFCM() async {
+    try {
+      // Vérifier si les notifications sont activées
+      final prefs = await SharedPreferences.getInstance();
+      final notificationsActivees = prefs.getBool('notifications_activees') ?? true;
+
+      if (!notificationsActivees) {
+        print('🔕 Notifications désactivées - pas de réenregistrement du token');
+        return;
+      }
+
+      // Obtenir et sauvegarder le token FCM
+      final token = await ServiceNotifications.obtenirTokenFCM();
+      if (token != null && _utilisateurConnecte != null) {
+        await ServiceUtilisateur.sauvegarderTokenFCM(
+          idUser: _utilisateurConnecte!.idUser,
+          tokenFCM: token,
+        );
+        print('🔔 Token FCM réenregistré au démarrage');
+      }
+    } catch (e) {
+      print('❌ Erreur réenregistrement token FCM: $e');
     }
   }
 
